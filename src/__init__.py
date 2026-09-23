@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Render Animated Image (GIF / WebP)",
     "author": "byebyeLAN",
-    "version": (2, 0, 0),
+    "version": (2, 1, 0),
     "blender": (4, 2, 0),
     "location": "Top Bar > Render > Render Animated Image (GIF/WebP)... & Output Properties",
     "description": "Render animation directly into animated WebP (loop=0) or GIF formats.",
