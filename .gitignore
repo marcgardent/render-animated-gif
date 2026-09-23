@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.idea/
+*.blend1
+*.zip
+build/
+wheels/
+src/wheels/
+*.whl
