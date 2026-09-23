@@ -102,6 +102,12 @@ class RENDER_PT_animated_export(bpy.types.Panel):
             icon='RENDER_ANIMATION'
         )
 
+        if settings.last_status:
+            box = layout.box()
+            status_icon = 'ERROR' if "failed" in settings.last_status.lower() or "error" in settings.last_status.lower() else 'CHECKMARK'
+            box.label(text=settings.last_status, icon=status_icon)
+
+
 
 def menu_func(self, context):
     self.layout.operator(

@@ -192,6 +192,50 @@ class AnimatedRenderBase:
         temp_dir = tempfile.mkdtemp(prefix="temp_anim_render_")
         temp_video_path = os.path.join(temp_dir, "render.mp4")
 
+        # Initialize progress tracking
+        total_frames = max(1, scene.frame_end - scene.frame_start + 1)
+        wm = context.window_manager
+        wm.progress_begin(0, 100)
+        wm.progress_update(0)
+
+        if hasattr(context, "window") and context.window:
+            try:
+                context.window.cursor_modal_set('WAIT')
+            except Exception:
+                pass
+
+        status_init = f"Rendering animated {target_format}: 0/{total_frames} frames..."
+        if hasattr(context, "workspace") and context.workspace:
+            try:
+                context.workspace.status_text_set(status_init)
+            except Exception:
+                pass
+        print(f"[Animated Export] {status_init}")
+
+        cancelled = False
+        frames_rendered = 0
+
+        def on_render_write(scn):
+            nonlocal frames_rendered
+            frames_rendered += 1
+            pct_render = min(1.0, max(0.0, frames_rendered / total_frames))
+            overall_pct = int(pct_render * 75)
+            wm.progress_update(overall_pct)
+            msg = f"Rendering animated {target_format}: Frame {frames_rendered}/{total_frames} ({int(pct_render * 100)}%)"
+            if hasattr(context, "workspace") and context.workspace:
+                try:
+                    context.workspace.status_text_set(msg)
+                except Exception:
+                    pass
+            print(f"[Animated Export] {msg}")
+
+        def on_render_cancel(scn):
+            nonlocal cancelled
+            cancelled = True
+
+        bpy.app.handlers.render_write.append(on_render_write)
+        bpy.app.handlers.render_cancel.append(on_render_cancel)
+
         try:
             # Configure temporary render settings
             scene.render.resolution_percentage = scale
@@ -207,6 +251,12 @@ class AnimatedRenderBase:
             print(f"Rendering animation to temporary video ({temp_video_path})...")
             bpy.ops.render.render(animation=True)
 
+            if cancelled:
+                if s:
+                    s.last_status = "Render cancelled by user"
+                self.report({'INFO'}, "Render cancelled by user.")
+                return {'CANCELLED'}
+
             # Locate the rendered temporary video file
             if not os.path.exists(temp_video_path):
                 candidates = [
@@ -216,6 +266,8 @@ class AnimatedRenderBase:
                 if candidates:
                     temp_video_path = candidates[0]
                 else:
+                    if s:
+                        s.last_status = "Render failed: temporary video missing"
                     self.report({'ERROR'}, "Rendering failed: temporary video file was not generated.")
                     return {'CANCELLED'}
 
@@ -223,7 +275,25 @@ class AnimatedRenderBase:
             if parent_dir:
                 os.makedirs(parent_dir, exist_ok=True)
 
-            print(f"Converting video to {target_format} (loop={loop_count})...")
+            wm.progress_update(75)
+            msg_enc = f"Encoding animated {target_format} with FFmpeg..."
+            if hasattr(context, "workspace") and context.workspace:
+                try:
+                    context.workspace.status_text_set(msg_enc)
+                except Exception:
+                    pass
+            print(f"[Animated Export] {msg_enc}")
+
+            def ffmpeg_progress_cb(conv_pct):
+                overall = 75 + int(conv_pct * 25)
+                wm.progress_update(overall)
+                enc_msg = f"Encoding animated {target_format}: {int(conv_pct * 100)}%..."
+                if hasattr(context, "workspace") and context.workspace:
+                    try:
+                        context.workspace.status_text_set(enc_msg)
+                    except Exception:
+                        pass
+
             success, err_msg = convert_video_to_animated_image(
                 ffmpeg_exe=ffmpeg_exe,
                 input_video=temp_video_path,
@@ -237,16 +307,51 @@ class AnimatedRenderBase:
                 webp_preset=webp_preset,
                 webp_compression=webp_compression,
                 temp_dir=temp_dir,
+                total_frames=total_frames,
+                progress_callback=ffmpeg_progress_cb,
             )
 
             if not success:
+                if s:
+                    s.last_status = f"Conversion failed: {err_msg}"
                 self.report({'ERROR'}, f"Conversion failed: {err_msg}")
                 return {'CANCELLED'}
 
-            self.report({'INFO'}, f"Successfully saved animated {target_format} to: {output_path}")
+            wm.progress_update(100)
+            file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+            if file_size > 1024 * 1024:
+                size_str = f"{file_size / (1024 * 1024):.2f} MB"
+            else:
+                size_str = f"{file_size / 1024:.1f} KB"
+
+            if s:
+                s.last_status = f"Saved: {os.path.basename(output_path)} ({size_str})"
+
+            self.report({'INFO'}, f"Successfully saved animated {target_format} ({size_str}) to: {output_path}")
             return {'FINISHED'}
 
         finally:
+            # Unregister progress handlers
+            if on_render_write in bpy.app.handlers.render_write:
+                bpy.app.handlers.render_write.remove(on_render_write)
+            if on_render_cancel in bpy.app.handlers.render_cancel:
+                bpy.app.handlers.render_cancel.remove(on_render_cancel)
+
+            # End progress indicator
+            wm.progress_end()
+
+            # Restore cursor and workspace status text
+            if hasattr(context, "window") and context.window:
+                try:
+                    context.window.cursor_modal_restore()
+                except Exception:
+                    pass
+            if hasattr(context, "workspace") and context.workspace:
+                try:
+                    context.workspace.status_text_set(None)
+                except Exception:
+                    pass
+
             # Restore original render settings
             scene.render.filepath = original_filepath
             if hasattr(scene.render.image_settings, "media_type") and original_media_type is not None:
@@ -260,6 +365,7 @@ class AnimatedRenderBase:
 
             # Clean up temporary directory
             shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 class RENDER_OT_animated_image(Operator, AnimatedRenderBase):

@@ -72,7 +72,8 @@ def run_tests():
         assert res_direct == {'FINISHED'}, f"Direct render failed: {res_direct}"
         assert os.path.exists(scene_output), "Direct render output file was not created!"
         assert os.path.getsize(scene_output) > 0, "Direct render output file is empty!"
-        print(f"  -> Direct render via scene settings OK ({os.path.getsize(scene_output)} bytes).")
+        assert "Saved:" in settings.last_status, f"Unexpected last_status: {settings.last_status}"
+        print(f"  -> Direct render via scene settings OK ({os.path.getsize(scene_output)} bytes, status: {settings.last_status}).")
 
         # 4. Test WebP Render with Operator Parameter Overrides (loop=0)
         print("[4/6] Testing WebP render with operator overrides (loop=0)...")

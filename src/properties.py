@@ -24,6 +24,12 @@ class AnimatedImageSettings(PropertyGroup):
         options={'PATH_SUPPORTS_BLEND_RELATIVE'},
     )
 
+    last_status: StringProperty(
+        name="Status",
+        description="Status of the last animated image render",
+        default="",
+    )
+
     format: EnumProperty(
         name="Format",
         description="Choose animated image format",
