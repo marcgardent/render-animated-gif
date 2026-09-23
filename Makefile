@@ -36,85 +36,86 @@ RESET        := \033[0m
 
 all: help
 
-## help: Afficher cette aide
+## help: Display this help message
 help:
 	@echo "$(BOLD)Extension : $(CYAN)$(EXT_ID)$(RESET) $(YELLOW)v$(VERSION)$(RESET) (Blender $(BLENDER_VER))"
 	@echo ""
-	@echo "$(BOLD)Cibles disponibles :$(RESET)"
-	@echo "  $(GREEN)make build$(RESET)        - Construit le package .zip complet (avec wheels imageio-ffmpeg)"
-	@echo "  $(GREEN)make build-light$(RESET)  - Construit un package .zip léger (sans wheels, utilise ffmpeg système)"
-	@echo "  $(GREEN)make install$(RESET)      - Construit et installe le package .zip dans Blender (user_default)"
-	@echo "  $(GREEN)make install-dev$(RESET)  - Crée un lien symbolique direct dans Blender pour le développement (live reload)"
-	@echo "  $(GREEN)make uninstall$(RESET)    - Désinstalle l'extension de Blender et supprime le lien de dev"
-	@echo "  $(GREEN)make wheels$(RESET)       - Télécharge les wheels de plateforme imageio-ffmpeg dans $(SRC_DIR)/wheels"
-	@echo "  $(GREEN)make validate$(RESET)     - Valide le fichier $(SRC_DIR)/blender_manifest.toml"
-	@echo "  $(GREEN)make test$(RESET)         - Lance les tests automatisés dans Blender en arrière-plan"
-	@echo "  $(GREEN)make clean$(RESET)        - Supprime le dossier build/, les archives .zip et les fichiers temporaires"
+	@echo "$(BOLD)Available targets:$(RESET)"
+	@echo "  $(GREEN)make build$(RESET)        - Build full .zip package (with bundled imageio-ffmpeg wheels)"
+	@echo "  $(GREEN)make build-light$(RESET)  - Build lightweight .zip package (without wheels, uses system ffmpeg)"
+	@echo "  $(GREEN)make install$(RESET)      - Build and install the .zip package into Blender (user_default)"
+	@echo "  $(GREEN)make install-dev$(RESET)  - Create direct symlink in Blender for development (live reload)"
+	@echo "  $(GREEN)make unlink$(RESET)       - Remove the development symlink"
+	@echo "  $(GREEN)make uninstall$(RESET)    - Uninstall the extension from Blender"
+	@echo "  $(GREEN)make wheels$(RESET)       - Download imageio-ffmpeg platform wheels into $(SRC_DIR)/wheels"
+	@echo "  $(GREEN)make validate$(RESET)     - Validate $(SRC_DIR)/blender_manifest.toml with Blender CLI"
+	@echo "  $(GREEN)make test$(RESET)         - Run automated test suite in headless Blender"
+	@echo "  $(GREEN)make clean$(RESET)        - Remove build artifacts, .zip files, and Python cache files"
 	@echo ""
 
-## wheels: Télécharger les wheels imageio-ffmpeg requis pour l'archive complète
+## wheels: Download required imageio-ffmpeg platform wheels
 wheels:
-	@echo "$(CYAN)==> Téléchargement des wheels plateformes dans $(SRC_DIR)/wheels...$(RESET)"
+	@echo "$(CYAN)==> Downloading platform wheels into $(SRC_DIR)/wheels...$(RESET)"
 	@$(PYTHON) $(SCRIPTS_DIR)/download_wheels.py $(SRC_DIR)/wheels
 
-## validate: Valider le manifeste de l'extension
+## validate: Validate extension manifest
 validate:
-	@echo "$(CYAN)==> Validation de $(SRC_DIR)/blender_manifest.toml...$(RESET)"
+	@echo "$(CYAN)==> Validating $(SRC_DIR)/blender_manifest.toml...$(RESET)"
 	@$(BLENDER) --command extension validate $(SRC_DIR)
 
-## build: Construire le package complet .zip
+## build: Build full .zip package (with bundled wheels)
 build: validate
-	@echo "$(CYAN)==> Construction du package complet (avec wheels)...$(RESET)"
+	@echo "$(CYAN)==> Building full extension package (with wheels)...$(RESET)"
 	@$(PYTHON) $(SCRIPTS_DIR)/build_package.py --output-dir $(BUILD_DIR)
-	@echo "$(GREEN)==> Archive créée avec succès : $(ZIP_FILE)$(RESET)"
+	@echo "$(GREEN)==> Archive successfully created: $(ZIP_FILE)$(RESET)"
 
-## build-light: Construire le package léger .zip sans wheels
+## build-light: Build lightweight .zip package (without wheels)
 build-light: validate
-	@echo "$(CYAN)==> Construction du package léger (sans wheels)...$(RESET)"
+	@echo "$(CYAN)==> Building lightweight extension package (without wheels)...$(RESET)"
 	@$(PYTHON) $(SCRIPTS_DIR)/build_package.py --light --output-dir $(BUILD_DIR)
-	@echo "$(GREEN)==> Archive légère créée avec succès : $(ZIP_FILE)$(RESET)"
+	@echo "$(GREEN)==> Lightweight archive successfully created: $(ZIP_FILE)$(RESET)"
 
-## install: Construire et installer dans Blender
+## install: Build and install into Blender
 install: build
-	@echo "$(CYAN)==> Installation de $(PACKAGE_NAME) dans Blender (user_default)...$(RESET)"
+	@echo "$(CYAN)==> Installing $(PACKAGE_NAME) into Blender (user_default)...$(RESET)"
 	@$(BLENDER) --command extension install-file -r user_default --enable $(ZIP_FILE)
-	@echo "$(GREEN)==> Extension installée et activée avec succès dans Blender !$(RESET)"
+	@echo "$(GREEN)==> Extension successfully installed and enabled in Blender!$(RESET)"
 
-## install-dev / link: Installer via lien symbolique pour le développement
+## install-dev / link: Install via symbolic link for live development
 install-dev: link
 
 link:
-	@echo "$(CYAN)==> Configuration du lien symbolique de développement...$(RESET)"
+	@echo "$(CYAN)==> Configuring development symbolic link...$(RESET)"
 	@mkdir -p $(USER_EXT_DIR)
 	@ln -sfn $(CURDIR)/$(SRC_DIR) $(DEV_LINK)
-	@echo "$(GREEN)==> Lien symbolique créé :$(RESET)"
+	@echo "$(GREEN)==> Symbolic link created:$(RESET)"
 	@echo "    $(DEV_LINK) -> $(CURDIR)/$(SRC_DIR)"
-	@echo "$(YELLOW)Conseil : Relancez Blender ou faites 'F3 > Reload Scripts' pour voir les modifications en direct.$(RESET)"
+	@echo "$(YELLOW)Tip: Restart Blender or press 'F3 > Reload Scripts' to see live changes.$(RESET)"
 
-## unlink: Supprimer le lien symbolique de dev
+## unlink: Remove development symbolic link
 unlink:
 	@if [ -L "$(DEV_LINK)" ]; then \
 		rm -f "$(DEV_LINK)"; \
-		echo "$(GREEN)==> Lien symbolique de développement supprimé : $(DEV_LINK)$(RESET)"; \
+		echo "$(GREEN)==> Development symbolic link removed: $(DEV_LINK)$(RESET)"; \
 	else \
-		echo "$(YELLOW)==> Aucun lien symbolique à supprimer dans $(USER_EXT_DIR)$(RESET)"; \
+		echo "$(YELLOW)==> No symbolic link to remove in $(USER_EXT_DIR)$(RESET)"; \
 	fi
 
-## uninstall: Désinstaller de Blender
+## uninstall: Uninstall extension from Blender
 uninstall: unlink
-	@echo "$(CYAN)==> Suppression de l'extension via Blender CLI...$(RESET)"
+	@echo "$(CYAN)==> Removing extension via Blender CLI...$(RESET)"
 	@-$(BLENDER) --command extension remove $(EXT_ID) 2>/dev/null || true
-	@echo "$(GREEN)==> Extension désinstallée.$(RESET)"
+	@echo "$(GREEN)==> Extension uninstalled.$(RESET)"
 
-## test: Lancer les tests automatisés dans Blender
+## test: Run automated headless tests in Blender
 test:
-	@echo "$(CYAN)==> Exécution de la suite de tests avec Blender $(BLENDER_VER)...$(RESET)"
+	@echo "$(CYAN)==> Running test suite with Blender $(BLENDER_VER)...$(RESET)"
 	@$(BLENDER) --background --python $(TESTS_DIR)/test_addon.py
 
-## clean: Nettoyer les fichiers générés
+## clean: Clean generated files and caches
 clean:
-	@echo "$(CYAN)==> Nettoyage...$(RESET)"
+	@echo "$(CYAN)==> Cleaning up...$(RESET)"
 	@rm -rf $(BUILD_DIR) *.zip
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.py[cod]" -delete 2>/dev/null || true
-	@echo "$(GREEN)==> Nettoyage terminé.$(RESET)"
+	@echo "$(GREEN)==> Clean complete.$(RESET)"

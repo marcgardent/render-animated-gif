@@ -115,6 +115,12 @@ def register():
 
 
 def unregister():
-    bpy.types.TOPBAR_MT_render.remove(menu_func)
+    try:
+        bpy.types.TOPBAR_MT_render.remove(menu_func)
+    except Exception:
+        pass
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass
