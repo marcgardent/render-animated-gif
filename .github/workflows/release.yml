@@ -1,0 +1,67 @@
+name: Package & Release
+
+"on":
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 2.0.0)'
+        required: true
+        default: '2.0.0'
+      release_stage:
+        description: 'Release stage (alpha, beta, rc, gold)'
+        required: false
+        default: 'gold'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download bundled wheels
+        run: python3 scripts/download_wheels.py src/wheels
+
+      - name: Package with BlenderKit Action
+        uses: blenderkit/blender-addon-build@main
+        with:
+          name: render_gif_animation
+          do-checkout: 'false'
+          build-location: './src'
+          exclude-files: '.git;.github;tests'
+
+  release:
+    name: Release on GitHub
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Determine version
+        id: get_version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Release with BlenderKit Action
+        uses: blenderkit/blender-addon-release@main
+        with:
+          version: ${{ steps.get_version.outputs.version }}
+          release_stage: ${{ github.event.inputs.release_stage || 'gold' }}
+          artifact_name: render_gif_animation
+          release_name: 'Render Animated Image (GIF & WebP)'
