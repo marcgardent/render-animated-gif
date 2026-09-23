@@ -23,7 +23,7 @@ def run_tests():
     print("=" * 60)
 
     # 1. Test Registration
-    print("[1/5] Testing registration...")
+    print("[1/6] Testing registration...")
     addon.register()
     scene = bpy.context.scene
     assert hasattr(scene, "animated_image_settings"), "animated_image_settings not found on scene!"
@@ -32,21 +32,24 @@ def run_tests():
     assert hasattr(bpy.ops.render, "animation_gif"), "render.animation_gif operator not registered!"
     print("  -> Registration OK.")
 
-    # 2. Test Scene Properties Configuration
-    print("[2/5] Testing property configuration...")
+    # 2. Test Scene Properties Configuration & Filepath Extension Sync
+    print("[2/6] Testing property configuration and extension sync...")
     settings = scene.animated_image_settings
+    assert hasattr(settings, "filepath"), "filepath property not found on animated_image_settings!"
+    settings.filepath = "//render.webp"
+    settings.format = 'GIF'
+    assert settings.format == 'GIF'
+    assert settings.filepath == "//render.gif", f"Expected //render.gif, got {settings.filepath}"
+
     settings.format = 'WEBP'
+    assert settings.format == 'WEBP'
+    assert settings.filepath == "//render.webp", f"Expected //render.webp, got {settings.filepath}"
+
     settings.webp_profile = 'HIGH'
     settings.scale = 50
     settings.loop_count = 0
-    assert settings.format == 'WEBP'
     assert settings.webp_profile == 'HIGH'
-
-    settings.format = 'GIF'
-    settings.gif_quality = 'HIGH'
-    assert settings.format == 'GIF'
-    assert settings.gif_quality == 'HIGH'
-    print("  -> Properties configuration OK.")
+    print("  -> Properties configuration and extension sync OK.")
 
     # Prepare minimal test scene
     scene.frame_start = 1
@@ -55,8 +58,24 @@ def run_tests():
     scene.render.resolution_y = 32
 
     with tempfile.TemporaryDirectory() as td:
-        # 3. Test WebP Render (loop=0)
-        print("[3/5] Testing WebP render with loop=0...")
+        # 3. Test Direct Render via Scene Settings (Output panel workflow: just render!)
+        print("[3/6] Testing direct render via scene settings (no modal, just render)...")
+        scene_output = os.path.join(td, "scene_render.webp")
+        settings.filepath = scene_output
+        settings.format = 'WEBP'
+        settings.webp_profile = 'BALANCED'
+        settings.scale = 100
+        settings.loop_count = 0
+
+        # Invoke operator without arguments, exactly like clicking the button in Output panel
+        res_direct = bpy.ops.render.animated_image()
+        assert res_direct == {'FINISHED'}, f"Direct render failed: {res_direct}"
+        assert os.path.exists(scene_output), "Direct render output file was not created!"
+        assert os.path.getsize(scene_output) > 0, "Direct render output file is empty!"
+        print(f"  -> Direct render via scene settings OK ({os.path.getsize(scene_output)} bytes).")
+
+        # 4. Test WebP Render with Operator Parameter Overrides (loop=0)
+        print("[4/6] Testing WebP render with operator overrides (loop=0)...")
         webp_path = os.path.join(td, "test_render.webp")
         res_webp = bpy.ops.render.animated_image(
             'EXEC_DEFAULT',
@@ -79,8 +98,8 @@ def run_tests():
         assert loop_count == 0, f"Expected loop_count 0, got {loop_count}"
         print(f"  -> WebP render OK (file size: {os.path.getsize(webp_path)} bytes, loop_count={loop_count}).")
 
-        # 4. Test GIF Render
-        print("[4/5] Testing GIF render...")
+        # 5. Test GIF Render
+        print("[5/6] Testing GIF render...")
         gif_path = os.path.join(td, "test_render.gif")
         res_gif = bpy.ops.render.animated_image(
             'EXEC_DEFAULT',
@@ -95,8 +114,8 @@ def run_tests():
         assert os.path.getsize(gif_path) > 0, "GIF file is empty!"
         print(f"  -> GIF render OK (file size: {os.path.getsize(gif_path)} bytes).")
 
-        # 5. Test Legacy Operator Compatibility
-        print("[5/5] Testing legacy render.animation_gif operator...")
+        # 6. Test Legacy Operator Compatibility
+        print("[6/6] Testing legacy render.animation_gif operator...")
         legacy_path = os.path.join(td, "legacy_render.gif")
         res_legacy = bpy.ops.render.animation_gif(
             'EXEC_DEFAULT',

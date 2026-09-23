@@ -34,9 +34,14 @@ def is_ffmpeg_available():
 
 def ensure_extension(filepath, target_format):
     """Ensure the filepath ends with the correct extension for the selected format."""
-    ext = ".webp" if target_format.upper() == 'WEBP' else ".gif"
+    ext = ".webp" if str(target_format).upper() == 'WEBP' else ".gif"
+    if not filepath:
+        return f"//render{ext}"
+    if filepath.endswith("/") or filepath.endswith("\\"):
+        return f"{filepath}render{ext}"
     lower_path = filepath.lower()
     if lower_path.endswith(".gif") or lower_path.endswith(".webp"):
         base = filepath.rsplit(".", 1)[0]
         return base + ext
     return filepath + ext
+

@@ -37,6 +37,14 @@ class RENDER_PT_animated_export(bpy.types.Panel):
 
         layout.separator()
 
+        # Destination file path
+        box = layout.box()
+        box.label(text="Output Destination:", icon='FILE_FOLDER')
+        col = box.column(align=True)
+        col.prop(settings, "filepath", text="File Path")
+
+        layout.separator()
+
         # Format-specific profile & options
         if settings.format == 'WEBP':
             box = layout.box()
@@ -98,7 +106,7 @@ class RENDER_PT_animated_export(bpy.types.Panel):
 def menu_func(self, context):
     self.layout.operator(
         "render.animated_image",
-        text="Render Animated Image (GIF/WebP)...",
+        text="Render Animated Image (GIF/WebP)",
         icon='RENDER_ANIMATION'
     )
 

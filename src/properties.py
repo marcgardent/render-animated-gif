@@ -1,10 +1,28 @@
 import bpy
-from bpy.props import EnumProperty, IntProperty, BoolProperty, PointerProperty
+from bpy.props import EnumProperty, IntProperty, BoolProperty, PointerProperty, StringProperty
 from bpy.types import PropertyGroup
+
+if __package__:
+    from .utils import ensure_extension
+else:
+    from utils import ensure_extension
+
+
+def _update_format(self, context):
+    if getattr(self, "filepath", None):
+        self.filepath = ensure_extension(self.filepath, self.format)
 
 
 class AnimatedImageSettings(PropertyGroup):
     """Configuration settings for animated image export (WebP / GIF)."""
+
+    filepath: StringProperty(
+        name="Output Path",
+        description="Destination file path for animated image export",
+        default="//render.webp",
+        subtype='FILE_PATH',
+        options={'PATH_SUPPORTS_BLEND_RELATIVE'},
+    )
 
     format: EnumProperty(
         name="Format",
@@ -14,6 +32,7 @@ class AnimatedImageSettings(PropertyGroup):
             ('GIF', "GIF", "Classic animated GIF: 8-bit palette (256 colors max), universal compatibility", 'IMAGE_DATA', 1),
         ],
         default='WEBP',
+        update=_update_format,
     )
 
     scale: IntProperty(
